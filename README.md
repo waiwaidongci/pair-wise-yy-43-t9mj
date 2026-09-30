@@ -28,11 +28,14 @@ python3 app.py --db ./data.db --port 8320
 - `GET /api/items`
 - `POST /api/items`
 - `GET /api/items/{id}`
-- `POST /api/items/{id}/records`
+- `POST /api/items/{id}/records`，必须提交`expected_version`；记录用`external_ref`（现场单号）识别，同号重传沿用首次结果，不重复写入
+- `POST /api/items/{id}/records/batch`，批量提交记录，必须提交`expected_version`；整批原子写入，版本冲突时整批保留、可原号重试
 - `POST /api/items/{id}/transition`，必须提交`expected_version`
 - `GET /api/audit`
 
 允许角色：observer, response_commander, operations, viewer。估算油量、海况和未完成任务数影响响应等级；关闭前必须完成回收和岸线监测记录。
+
+事件、监测记录和关闭结论共用同一版本链：记录按提交时的事件版本落链，关闭结论与版本绑定。油膜厚度或岸线复油数据更新后，原关闭结论立即失效，事件退回复核，关闭权限暂停至重新核验（补入新版本下的回收与岸线监测记录）。两个终端同时提交记录时只接受当前版本，后到者收到冲突（409）。
 
 ## 测试
 
