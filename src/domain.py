@@ -10,13 +10,20 @@ class ValidationError(DomainError): kind=ErrorKind.VALIDATION
 class NotFoundError(DomainError): kind=ErrorKind.NOT_FOUND
 class PermissionDenied(DomainError): kind=ErrorKind.FORBIDDEN
 class ConflictError(DomainError): kind=ErrorKind.CONFLICT
-SEVERITIES=['minor', 'moderate', 'major', 'catastrophic']; STATES=['reported', 'assessing', 'containing', 'recovering', 'monitoring', 'closed']; ROLES=['observer', 'response_commander', 'operations', 'viewer']
+SEVERITIES=['minor', 'moderate', 'major', 'catastrophic']; STATES=['reported', 'assessing', 'containing', 'recovering', 'monitoring', 'review', 'closed']; ROLES=['observer', 'response_commander', 'operations', 'viewer']
+# 监测记录类型
+RECORD_STATUSES=['open', 'closed']
+# 写入后会使已生效关闭结论失效的现场数据类型
+REOPEN_RECORD_KINDS=['oil_slick_thickness', 'shoreline_reoil']
 @dataclass(frozen=True)
 class Item:
     id:int; title:str; description:str; severity:str; quantity:float; threshold:float; status:str; version:int; external_ref:Optional[str]; created_by:str; created_at:str; updated_at:str
 @dataclass(frozen=True)
 class Record:
-    id:int; item_id:int; kind:str; detail:str; status:str; external_ref:Optional[str]; created_by:str; created_at:str
+    id:int; item_id:int; kind:str; detail:str; status:str; external_ref:Optional[str]; item_version:int; created_by:str; created_at:str
+@dataclass(frozen=True)
+class Closure:
+    id:int; item_id:int; item_version:int; conclusion:str; valid:int; invalidated_reason:Optional[str]; invalidated_record_id:Optional[int]; created_by:str; created_at:str; invalidated_at:Optional[str]
 @dataclass(frozen=True)
 class AuditEntry:
     id:int; action:str; entity_type:str; entity_id:int; actor:str; detail:Dict[str,Any]; previous_hash:str; entry_hash:str; created_at:str
@@ -34,5 +41,9 @@ def require_number(value,field,minimum=0.0):
     except (TypeError,ValueError): raise ValidationError(f"{field}必须是数字")
     if number<minimum: raise ValidationError(f"{field}不能小于{minimum}")
     return number
+def require_version(value,field="expected_version"):
+    if isinstance(value,bool) or not isinstance(value,int) or value<1:
+        raise ValidationError(f"{field}必须是正整数")
+    return value
 def ensure_role(role,allowed):
     if role not in allowed: raise PermissionDenied("当前角色无权执行该操作")
